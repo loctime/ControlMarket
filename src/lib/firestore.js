@@ -82,8 +82,10 @@ export async function getCategories(orgId) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
-export async function addCategory(name, order = 999) {
+export async function addCategory(orgId, name, order = 999) {
+  assertOrg(orgId)
   const ref = await addDoc(collection(db, 'categories'), {
+    orgId,
     name,
     order,
     active: true,
@@ -94,7 +96,8 @@ export async function addCategory(name, order = 999) {
 
 // ── Bulk product import ──────────────────────────────────────────────────────
 
-export async function bulkAddProducts(products, { onProgress } = {}) {
+export async function bulkAddProducts(orgId, products, { onProgress } = {}) {
+  assertOrg(orgId)
   const BATCH_SIZE = 400
   let written = 0
   for (let i = 0; i < products.length; i += BATCH_SIZE) {
@@ -104,6 +107,7 @@ export async function bulkAddProducts(products, { onProgress } = {}) {
       const ref = doc(collection(db, 'products'))
       batch.set(ref, {
         ...product,
+        orgId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
@@ -115,8 +119,15 @@ export async function bulkAddProducts(products, { onProgress } = {}) {
   return written
 }
 
-export async function getActiveProductIndex() {
-  const snap = await getDocs(query(collection(db, 'products'), where('active', '==', true)))
+export async function getActiveProductIndex(orgId) {
+  assertOrg(orgId)
+  const snap = await getDocs(
+    query(
+      collection(db, 'products'),
+      where('orgId', '==', orgId),
+      where('active', '==', true)
+    )
+  )
   return snap.docs.map((d) => {
     const data = d.data()
     return {

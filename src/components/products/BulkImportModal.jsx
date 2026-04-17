@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Button from '../ui/Button'
 import Alert from '../ui/Alert'
 import Spinner from '../ui/Spinner'
+import useAuth from '../../hooks/useAuth'
 import {
   parseProductFile,
   processRows,
@@ -26,6 +27,7 @@ const PHASES = {
 }
 
 export default function BulkImportModal({ open, onClose }) {
+  const { orgId } = useAuth()
   const [phase, setPhase] = useState(PHASES.idle)
   const [error, setError] = useState('')
   const [rows, setRows] = useState([])
@@ -55,8 +57,8 @@ export default function BulkImportModal({ open, onClose }) {
     try {
       const [rawRows, cats, existingProducts] = await Promise.all([
         parseProductFile(file),
-        getCategories(),
-        getActiveProductIndex(),
+        getCategories(orgId),
+        getActiveProductIndex(orgId),
       ])
       if (!rawRows.length) {
         setError('El archivo no tiene filas')
@@ -111,7 +113,7 @@ export default function BulkImportModal({ open, onClose }) {
       const exists = workingCategories.find((c) => normalize(c.name) === key)
       if (exists) return exists.name
       try {
-        const created = await addCategory(input)
+        const created = await addCategory(orgId, input)
         workingCategories.push(created)
         createdCategories.push(created.name)
         return created.name
@@ -169,7 +171,7 @@ export default function BulkImportModal({ open, onClose }) {
       let done = 0
 
       if (toCreate.length) {
-        await bulkAddProducts(toCreate, {
+        await bulkAddProducts(orgId, toCreate, {
           onProgress: (written) => setProgress({ written: done + written, total }),
         })
         done += toCreate.length
