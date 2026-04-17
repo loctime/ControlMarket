@@ -4,7 +4,7 @@ import useProducts from '../hooks/useProducts'
 import ProductList from '../components/products/ProductList'
 import BulkImportModal from '../components/products/BulkImportModal'
 import Spinner from '../components/ui/Spinner'
-import { downloadProductTemplate } from '../utils/productTemplate'
+import { downloadProductsWorkbook } from '../utils/productTemplate'
 
 export default function ProductsPage() {
   const { products, loading } = useProducts()
@@ -16,10 +16,12 @@ export default function ProductsPage() {
         <h1 className="text-xl font-bold text-gray-900">Productos</h1>
         <div className="flex items-center gap-2">
           <button
-            onClick={downloadProductTemplate}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            onClick={() => downloadProductsWorkbook(products)}
+            disabled={loading}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            title={products.length ? 'Exportar tus productos a Excel' : 'Descargar plantilla de ejemplo'}
           >
-            Plantilla
+            {products.length ? 'Exportar' : 'Plantilla'}
           </button>
           <button
             onClick={() => setImportOpen(true)}

@@ -32,6 +32,7 @@ export default function BulkImportModal({ open, onClose }) {
   const [categories, setCategories] = useState([])
   const [categoryDecisions, setCategoryDecisions] = useState([])
   const [duplicatePolicy, setDuplicatePolicy] = useState('update')
+  const [stockMode, setStockMode] = useState('replace')
   const [progress, setProgress] = useState({ written: 0, total: 0 })
   const [summary, setSummary] = useState(null)
 
@@ -144,12 +145,19 @@ export default function BulkImportModal({ open, onClose }) {
             continue
           }
           if (duplicatePolicy === 'update') {
-            const { stock, ...rest } = payload
-            toUpdate.push({
-              id: row.duplicate.product.id,
-              data: rest,
-              stockIncrement: stock,
-            })
+            if (stockMode === 'sum') {
+              const { stock, ...rest } = payload
+              toUpdate.push({
+                id: row.duplicate.product.id,
+                data: rest,
+                stockIncrement: stock,
+              })
+            } else {
+              toUpdate.push({
+                id: row.duplicate.product.id,
+                data: payload,
+              })
+            }
             continue
           }
         }
@@ -271,10 +279,30 @@ export default function BulkImportModal({ open, onClose }) {
                   </label>
                 </div>
                 {duplicatePolicy === 'update' && (
-                  <p className="text-xs text-gray-500">
-                    Al actualizar: el stock del archivo se <strong>suma</strong> al existente;
-                    precio, costo, categoria y unidad se reemplazan.
-                  </p>
+                  <div className="flex flex-col gap-2 border-t border-gray-200 pt-2">
+                    <label className="text-xs font-medium text-gray-700">Stock del archivo:</label>
+                    <div className="flex flex-wrap gap-4 text-xs">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          checked={stockMode === 'replace'}
+                          onChange={() => setStockMode('replace')}
+                        />
+                        Reemplazar (editar valores)
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          checked={stockMode === 'sum'}
+                          onChange={() => setStockMode('sum')}
+                        />
+                        Sumar (re-stock)
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Precio, costo, categoria y unidad siempre se reemplazan por lo del archivo.
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -406,7 +434,9 @@ export default function BulkImportModal({ open, onClose }) {
               <h3 className="text-base font-semibold text-emerald-700">Importacion completa</h3>
               <ul className="flex flex-col gap-1 text-gray-700">
                 {summary.created > 0 && <li>✓ {summary.created} productos creados</li>}
-                {summary.updated > 0 && <li>✓ {summary.updated} productos actualizados (stock sumado)</li>}
+                {summary.updated > 0 && (
+                  <li>✓ {summary.updated} productos actualizados (stock {stockMode === 'sum' ? 'sumado' : 'reemplazado'})</li>
+                )}
                 {summary.skippedDup > 0 && <li>• {summary.skippedDup} saltados por duplicado</li>}
                 {summary.skippedManual > 0 && <li>• {summary.skippedManual} descartados manualmente</li>}
                 {summary.skippedErrors > 0 && <li>• {summary.skippedErrors} filas con errores ignoradas</li>}

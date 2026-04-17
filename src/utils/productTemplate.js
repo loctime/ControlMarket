@@ -34,6 +34,19 @@ const EXAMPLES = [
   },
 ]
 
+function productToRow(p) {
+  return {
+    nombre: p.name ?? '',
+    precio: Number.isFinite(p.price) ? p.price : '',
+    costo: Number.isFinite(p.costPrice) ? p.costPrice : 0,
+    stock: Number.isFinite(p.stock) ? p.stock : 0,
+    categoria: p.category ?? '',
+    codigo_barras: p.barcode ?? '',
+    unidad: p.unit ?? 'pieza',
+    activo: p.active === false ? 'no' : 'si',
+  }
+}
+
 const INSTRUCTIONS = [
   ['Columna', 'Obligatoria', 'Descripcion', 'Si se deja vacia'],
   ['nombre', 'SI', 'Nombre del producto tal como aparecera en la app', 'La fila se descarta'],
@@ -48,19 +61,23 @@ const INSTRUCTIONS = [
   ['Notas:'],
   ['- No renombres las columnas ni cambies su orden.'],
   ['- Si una categoria nueva se parece a una existente, la app te pregunta antes de crearla.'],
-  ['- Los codigos de barras duplicados con productos existentes se detectan al importar.'],
+  ['- El archivo exportado incluye tus productos actuales: editalos y reimporta con "Actualizar".'],
+  ['- Al actualizar podes elegir si el stock del archivo REEMPLAZA o SUMA al existente.'],
+  ['- Los codigos de barras o nombres duplicados se detectan al importar.'],
 ]
 
-export function downloadProductTemplate() {
+export function downloadProductsWorkbook(products = []) {
   const wb = XLSX.utils.book_new()
 
-  const productsSheet = XLSX.utils.json_to_sheet(EXAMPLES, { header: PRODUCT_COLUMNS })
+  const rows = products.length ? products.map(productToRow) : EXAMPLES
+  const productsSheet = XLSX.utils.json_to_sheet(rows, { header: PRODUCT_COLUMNS })
   productsSheet['!cols'] = PRODUCT_COLUMNS.map((c) => ({ wch: Math.max(14, c.length + 2) }))
   XLSX.utils.book_append_sheet(wb, productsSheet, 'Productos')
 
   const instructionsSheet = XLSX.utils.aoa_to_sheet(INSTRUCTIONS)
-  instructionsSheet['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 50 }, { wch: 28 }]
+  instructionsSheet['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 56 }, { wch: 28 }]
   XLSX.utils.book_append_sheet(wb, instructionsSheet, 'Instrucciones')
 
-  XLSX.writeFile(wb, 'plantilla-productos.xlsx', { bookType: 'xlsx' })
+  const filename = products.length ? 'productos.xlsx' : 'plantilla-productos.xlsx'
+  XLSX.writeFile(wb, filename, { bookType: 'xlsx' })
 }
