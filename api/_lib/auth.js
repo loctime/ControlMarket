@@ -1,4 +1,4 @@
-import { auth } from './firebaseAdmin.js'
+import { getAuth } from './firebaseAdmin.js'
 
 export async function requireAuth(req) {
   const header = req.headers.authorization || ''
@@ -9,7 +9,7 @@ export async function requireAuth(req) {
     throw err
   }
   try {
-    const decoded = await auth.verifyIdToken(token)
+    const decoded = await getAuth().verifyIdToken(token)
     return {
       uid: decoded.uid,
       email: decoded.email,
