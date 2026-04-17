@@ -112,10 +112,16 @@ export async function parseProductFile(file) {
   return XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true })
 }
 
-export function processRows(rawRows, existingCategories, existingBarcodes) {
-  const existingBarcodeSet = new Set(
-    (existingBarcodes ?? []).map((b) => String(b).trim()).filter(Boolean)
-  )
+export function processRows(rawRows, existingCategories, existingProducts) {
+  const byBarcode = new Map()
+  const byName = new Map()
+  for (const p of existingProducts ?? []) {
+    if (p.barcode) byBarcode.set(p.barcode, p)
+    if (p.name) {
+      const key = normalize(p.name)
+      if (key && !byName.has(key)) byName.set(key, p)
+    }
+  }
 
   return rawRows.map((raw, idx) => {
     const mapped = mapRow(raw)
@@ -157,8 +163,17 @@ export function processRows(rawRows, existingCategories, existingBarcodes) {
       ? findCategoryMatch(categoryName, existingCategories)
       : { type: 'none' }
 
-    const duplicateBarcode = barcode ? existingBarcodeSet.has(barcode) : false
-    if (duplicateBarcode) warnings.push('codigo de barras ya existe')
+    let duplicate = null
+    if (barcode && byBarcode.has(barcode)) {
+      duplicate = { type: 'barcode', product: byBarcode.get(barcode) }
+      warnings.push(`codigo repite producto "${duplicate.product.name}"`)
+    } else if (name) {
+      const key = normalize(name)
+      if (byName.has(key)) {
+        duplicate = { type: 'name', product: byName.get(key) }
+        warnings.push(`nombre coincide con producto existente`)
+      }
+    }
 
     return {
       rowIndex: idx + 2,
@@ -174,7 +189,7 @@ export function processRows(rawRows, existingCategories, existingBarcodes) {
         categoryInput: categoryName,
       },
       categoryMatch,
-      duplicateBarcode,
+      duplicate,
       errors,
       warnings,
       autofilled,

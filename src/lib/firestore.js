@@ -93,11 +93,37 @@ export async function bulkAddProducts(products, { onProgress } = {}) {
   return written
 }
 
-export async function getAllProductBarcodes() {
+export async function getActiveProductIndex() {
   const snap = await getDocs(query(collection(db, 'products'), where('active', '==', true)))
-  return snap.docs
-    .map((d) => d.data().barcode)
-    .filter((b) => typeof b === 'string' && b.trim().length > 0)
+  return snap.docs.map((d) => {
+    const data = d.data()
+    return {
+      id: d.id,
+      name: typeof data.name === 'string' ? data.name : '',
+      barcode: typeof data.barcode === 'string' ? data.barcode.trim() : '',
+    }
+  })
+}
+
+export async function bulkUpdateProducts(updates, { onProgress } = {}) {
+  const BATCH_SIZE = 400
+  let written = 0
+  for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+    const chunk = updates.slice(i, i + BATCH_SIZE)
+    const batch = writeBatch(db)
+    for (const { id, data, stockIncrement } of chunk) {
+      const ref = doc(db, 'products', id)
+      const payload = { ...data, updatedAt: serverTimestamp() }
+      if (Number.isFinite(stockIncrement) && stockIncrement !== 0) {
+        payload.stock = increment(stockIncrement)
+      }
+      batch.update(ref, payload)
+    }
+    await batch.commit()
+    written += chunk.length
+    onProgress?.(written, updates.length)
+  }
+  return written
 }
 
 // ── Sales ─────────────────────────────────────────────────────────────────────

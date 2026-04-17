@@ -13,7 +13,8 @@ import {
   getCategories,
   addCategory,
   bulkAddProducts,
-  getAllProductBarcodes,
+  bulkUpdateProducts,
+  getActiveProductIndex,
 } from '../../lib/firestore'
 
 const PHASES = {
@@ -30,7 +31,7 @@ export default function BulkImportModal({ open, onClose }) {
   const [rows, setRows] = useState([])
   const [categories, setCategories] = useState([])
   const [categoryDecisions, setCategoryDecisions] = useState([])
-  const [duplicatePolicy, setDuplicatePolicy] = useState('skip')
+  const [duplicatePolicy, setDuplicatePolicy] = useState('update')
   const [progress, setProgress] = useState({ written: 0, total: 0 })
   const [summary, setSummary] = useState(null)
 
@@ -51,10 +52,10 @@ export default function BulkImportModal({ open, onClose }) {
     setError('')
     setPhase(PHASES.loading)
     try {
-      const [rawRows, cats, barcodes] = await Promise.all([
+      const [rawRows, cats, existingProducts] = await Promise.all([
         parseProductFile(file),
         getCategories(),
-        getAllProductBarcodes(),
+        getActiveProductIndex(),
       ])
       if (!rawRows.length) {
         setError('El archivo no tiene filas')
@@ -62,7 +63,7 @@ export default function BulkImportModal({ open, onClose }) {
         return
       }
       setCategories(cats)
-      const processed = processRows(rawRows, cats, barcodes)
+      const processed = processRows(rawRows, cats, existingProducts)
       setRows(processed)
       setCategoryDecisions(collectUnresolvedCategories(processed))
       setPhase(PHASES.preview)
@@ -120,17 +121,13 @@ export default function BulkImportModal({ open, onClose }) {
     }
 
     try {
-      const toImport = []
-      let updatedCount = 0
+      const toCreate = []
+      const toUpdate = []
       let skippedDup = 0
       for (const row of rows) {
         if (row.skip || row.errors.length) continue
-        if (row.duplicateBarcode && duplicatePolicy === 'skip') {
-          skippedDup++
-          continue
-        }
         const category = await resolveCategoryName(row.normalized.categoryInput)
-        toImport.push({
+        const payload = {
           name: row.normalized.name,
           price: row.normalized.price,
           costPrice: row.normalized.costPrice,
@@ -139,20 +136,49 @@ export default function BulkImportModal({ open, onClose }) {
           barcode: row.normalized.barcode,
           category,
           active: row.normalized.active,
-        })
+        }
+
+        if (row.duplicate) {
+          if (duplicatePolicy === 'skip') {
+            skippedDup++
+            continue
+          }
+          if (duplicatePolicy === 'update') {
+            const { stock, ...rest } = payload
+            toUpdate.push({
+              id: row.duplicate.product.id,
+              data: rest,
+              stockIncrement: stock,
+            })
+            continue
+          }
+        }
+        toCreate.push(payload)
       }
 
-      setProgress({ written: 0, total: toImport.length })
-      await bulkAddProducts(toImport, {
-        onProgress: (written, total) => setProgress({ written, total }),
-      })
+      const total = toCreate.length + toUpdate.length
+      setProgress({ written: 0, total })
+      let done = 0
+
+      if (toCreate.length) {
+        await bulkAddProducts(toCreate, {
+          onProgress: (written) => setProgress({ written: done + written, total }),
+        })
+        done += toCreate.length
+      }
+      if (toUpdate.length) {
+        await bulkUpdateProducts(toUpdate, {
+          onProgress: (written) => setProgress({ written: done + written, total }),
+        })
+        done += toUpdate.length
+      }
 
       setSummary({
-        imported: toImport.length,
+        created: toCreate.length,
+        updated: toUpdate.length,
         skippedErrors: rows.filter((r) => r.errors.length).length,
         skippedManual: rows.filter((r) => r.skip && !r.errors.length).length,
         skippedDup,
-        updated: updatedCount,
         createdCategories,
       })
       setPhase(PHASES.done)
@@ -217,8 +243,16 @@ export default function BulkImportModal({ open, onClose }) {
               </div>
 
               <div className="flex flex-col gap-2 rounded-lg border border-gray-200 px-4 py-3 text-sm">
-                <label className="font-medium text-gray-700">Si un codigo de barras ya existe:</label>
-                <div className="flex gap-4">
+                <label className="font-medium text-gray-700">Si el producto ya existe (por codigo o por nombre):</label>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={duplicatePolicy === 'update'}
+                      onChange={() => setDuplicatePolicy('update')}
+                    />
+                    Actualizar existente
+                  </label>
                   <label className="flex items-center gap-2">
                     <input
                       type="radio"
@@ -236,6 +270,12 @@ export default function BulkImportModal({ open, onClose }) {
                     Crear igual (duplicar)
                   </label>
                 </div>
+                {duplicatePolicy === 'update' && (
+                  <p className="text-xs text-gray-500">
+                    Al actualizar: el stock del archivo se <strong>suma</strong> al existente;
+                    precio, costo, categoria y unidad se reemplazan.
+                  </p>
+                )}
               </div>
 
               {categoryDecisions.length > 0 && (
@@ -299,7 +339,7 @@ export default function BulkImportModal({ open, onClose }) {
                   <tbody>
                     {rows.map((row) => {
                       const hasError = row.errors.length > 0
-                      const dup = row.duplicateBarcode
+                      const dup = row.duplicate
                       return (
                         <tr
                           key={row.rowIndex}
@@ -327,8 +367,13 @@ export default function BulkImportModal({ open, onClose }) {
                           <td className="px-3 py-2">{row.normalized.barcode || '—'}</td>
                           <td className="px-3 py-2 text-xs">
                             {hasError && <span className="text-red-700">{row.errors.join(', ')}</span>}
-                            {!hasError && dup && <span className="text-amber-700">codigo duplicado · </span>}
-                            {!hasError && row.warnings.length > 0 && (
+                            {!hasError && dup && (
+                              <span className="text-amber-700">
+                                {duplicatePolicy === 'update' ? 'Actualizar' : duplicatePolicy === 'skip' ? 'Saltar' : 'Crear'}
+                                {' '}({dup.type === 'barcode' ? 'codigo' : 'nombre'})
+                              </span>
+                            )}
+                            {!hasError && !dup && row.warnings.length > 0 && (
                               <span className="text-amber-700">{row.warnings.join(', ')}</span>
                             )}
                             {!hasError && row.autofilled.length > 0 && (
@@ -360,8 +405,9 @@ export default function BulkImportModal({ open, onClose }) {
             <div className="flex flex-col gap-3 py-6 text-sm">
               <h3 className="text-base font-semibold text-emerald-700">Importacion completa</h3>
               <ul className="flex flex-col gap-1 text-gray-700">
-                <li>✓ {summary.imported} productos creados</li>
-                {summary.skippedDup > 0 && <li>• {summary.skippedDup} saltados por codigo de barras duplicado</li>}
+                {summary.created > 0 && <li>✓ {summary.created} productos creados</li>}
+                {summary.updated > 0 && <li>✓ {summary.updated} productos actualizados (stock sumado)</li>}
+                {summary.skippedDup > 0 && <li>• {summary.skippedDup} saltados por duplicado</li>}
                 {summary.skippedManual > 0 && <li>• {summary.skippedManual} descartados manualmente</li>}
                 {summary.skippedErrors > 0 && <li>• {summary.skippedErrors} filas con errores ignoradas</li>}
                 {summary.createdCategories.length > 0 && (
