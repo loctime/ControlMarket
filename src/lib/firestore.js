@@ -16,11 +16,17 @@ import {
 } from 'firebase/firestore'
 import { db } from './firebase'
 
+function assertOrg(orgId) {
+  if (!orgId) throw new Error('Sesión sin organización')
+}
+
 // ── Products ─────────────────────────────────────────────────────────────────
 
-export function subscribeProducts(callback) {
+export function subscribeProducts(orgId, callback) {
+  assertOrg(orgId)
   const q = query(
     collection(db, 'products'),
+    where('orgId', '==', orgId),
     where('active', '==', true),
     orderBy('name')
   )
@@ -29,16 +35,24 @@ export function subscribeProducts(callback) {
   )
 }
 
-export async function getProductByBarcode(barcode) {
-  const q = query(collection(db, 'products'), where('barcode', '==', barcode), limit(1))
+export async function getProductByBarcode(orgId, barcode) {
+  assertOrg(orgId)
+  const q = query(
+    collection(db, 'products'),
+    where('orgId', '==', orgId),
+    where('barcode', '==', barcode),
+    limit(1)
+  )
   const snap = await getDocs(q)
   if (snap.empty) return null
   return { id: snap.docs[0].id, ...snap.docs[0].data() }
 }
 
-export async function addProduct(data) {
+export async function addProduct(orgId, data) {
+  assertOrg(orgId)
   return addDoc(collection(db, 'products'), {
     ...data,
+    orgId,
     active: true,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -55,8 +69,16 @@ export async function softDeleteProduct(id) {
 
 // ── Categories ────────────────────────────────────────────────────────────────
 
-export async function getCategories() {
-  const snap = await getDocs(query(collection(db, 'categories'), where('active', '==', true), orderBy('order')))
+export async function getCategories(orgId) {
+  assertOrg(orgId)
+  const snap = await getDocs(
+    query(
+      collection(db, 'categories'),
+      where('orgId', '==', orgId),
+      where('active', '==', true),
+      orderBy('order')
+    )
+  )
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
@@ -128,11 +150,22 @@ export async function bulkUpdateProducts(updates, { onProgress } = {}) {
 
 // ── Sales ─────────────────────────────────────────────────────────────────────
 
-export async function registerSale({ items, total, profit, paymentMethod, vendedorId, vendedorName, dateKey }) {
+export async function registerSale({
+  orgId,
+  items,
+  total,
+  profit,
+  paymentMethod,
+  vendedorId,
+  vendedorName,
+  dateKey,
+}) {
+  assertOrg(orgId)
   const batch = writeBatch(db)
 
   const saleRef = doc(collection(db, 'sales'))
   batch.set(saleRef, {
+    orgId,
     vendedorId,
     vendedorName,
     total,
@@ -153,26 +186,27 @@ export async function registerSale({ items, total, profit, paymentMethod, vended
   return saleRef.id
 }
 
-export function subscribeSalesHistory({ vendedorId, startDate, endDate, isAdmin }, callback) {
-  let q = query(collection(db, 'sales'), where('status', '==', 'completed'), orderBy('createdAt', 'desc'))
-
+export function subscribeSalesHistory({ orgId, vendedorId, isAdmin }, callback) {
+  assertOrg(orgId)
+  const filters = [
+    where('orgId', '==', orgId),
+    where('status', '==', 'completed'),
+  ]
   if (!isAdmin && vendedorId) {
-    q = query(
-      collection(db, 'sales'),
-      where('vendedorId', '==', vendedorId),
-      where('status', '==', 'completed'),
-      orderBy('createdAt', 'desc')
-    )
+    filters.push(where('vendedorId', '==', vendedorId))
   }
+  const q = query(collection(db, 'sales'), ...filters, orderBy('createdAt', 'desc'))
 
   return onSnapshot(q, (snap) =>
     callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
   )
 }
 
-export async function getDailySales(dateKey) {
+export async function getDailySales(orgId, dateKey) {
+  assertOrg(orgId)
   const q = query(
     collection(db, 'sales'),
+    where('orgId', '==', orgId),
     where('dateKey', '==', dateKey),
     where('status', '==', 'completed')
   )
@@ -180,9 +214,11 @@ export async function getDailySales(dateKey) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
-export async function getWeeklySales(startDateKey) {
+export async function getWeeklySales(orgId, startDateKey) {
+  assertOrg(orgId)
   const q = query(
     collection(db, 'sales'),
+    where('orgId', '==', orgId),
     where('dateKey', '>=', startDateKey),
     where('status', '==', 'completed'),
     orderBy('dateKey')
@@ -199,6 +235,9 @@ export async function getUserProfile(uid) {
   return { uid: snap.id, ...snap.data() }
 }
 
-export async function updateLastLogin(uid) {
-  return updateDoc(doc(db, 'users', uid), { lastLogin: serverTimestamp() })
+// updateLastLogin: deshabilitado en el cliente. El doc users es de solo lectura
+// bajo las reglas multi-tenant; si se necesita tracking de lastLogin, mover al
+// backend o usar un trigger onCreate/onSignIn.
+export async function updateLastLogin() {
+  return null
 }

@@ -4,9 +4,10 @@ import SalesList from '../components/sales/SalesList'
 import Spinner from '../components/ui/Spinner'
 
 export default function SaleHistoryPage() {
-  const { currentUser, role } = useAuth()
+  const { currentUser, role, orgId } = useAuth()
   const isAdmin = role === 'admin'
   const { sales, loading } = useSalesHistory({
+    orgId,
     vendedorId: currentUser?.uid,
     isAdmin,
   })
