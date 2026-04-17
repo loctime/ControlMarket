@@ -60,6 +60,46 @@ export async function getCategories() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
+export async function addCategory(name, order = 999) {
+  const ref = await addDoc(collection(db, 'categories'), {
+    name,
+    order,
+    active: true,
+    createdAt: serverTimestamp(),
+  })
+  return { id: ref.id, name, order, active: true }
+}
+
+// ── Bulk product import ──────────────────────────────────────────────────────
+
+export async function bulkAddProducts(products, { onProgress } = {}) {
+  const BATCH_SIZE = 400
+  let written = 0
+  for (let i = 0; i < products.length; i += BATCH_SIZE) {
+    const chunk = products.slice(i, i + BATCH_SIZE)
+    const batch = writeBatch(db)
+    for (const product of chunk) {
+      const ref = doc(collection(db, 'products'))
+      batch.set(ref, {
+        ...product,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    }
+    await batch.commit()
+    written += chunk.length
+    onProgress?.(written, products.length)
+  }
+  return written
+}
+
+export async function getAllProductBarcodes() {
+  const snap = await getDocs(query(collection(db, 'products'), where('active', '==', true)))
+  return snap.docs
+    .map((d) => d.data().barcode)
+    .filter((b) => typeof b === 'string' && b.trim().length > 0)
+}
+
 // ── Sales ─────────────────────────────────────────────────────────────────────
 
 export async function registerSale({ items, total, profit, paymentMethod, vendedorId, vendedorName, dateKey }) {

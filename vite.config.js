@@ -59,6 +59,7 @@ export default defineConfig({
           if (id.includes('firebase')) return 'firebase'
           if (id.includes('@zxing')) return 'zxing'
           if (id.includes('recharts') || id.includes('d3-')) return 'recharts'
+          if (id.includes('xlsx')) return 'xlsx'
         },
       },
     },
