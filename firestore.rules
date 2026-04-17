@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isVendedor() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'vendedor';
+    }
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Users: read own profile; admin reads all
+    match /users/{uid} {
+      allow read: if request.auth.uid == uid || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Products: admin full access; vendedor read-only
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Categories: authenticated read; admin write
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Sales: admin reads all; vendedor writes own + reads own
+    match /sales/{saleId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.vendedorId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.vendedorId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+  }
+}
