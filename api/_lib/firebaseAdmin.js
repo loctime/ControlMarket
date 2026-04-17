@@ -5,11 +5,9 @@ if (!raw) {
   throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON no está configurado')
 }
 
-const serviceAccount = JSON.parse(raw)
-
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+    credential: admin.credential.cert(JSON.parse(raw)),
   })
 }
 
