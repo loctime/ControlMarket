@@ -15,7 +15,7 @@ import Alert from '../components/ui/Alert'
 const TABS = ['scanner', 'buscar']
 
 export default function SalesPage() {
-  const { currentUser, role } = useAuth()
+  const { currentUser, orgId } = useAuth()
   const { products } = useProducts()
   const { items, addItem, updateQty, removeItem, clearCart, cartTotal, cartProfit } = useCart()
   const { submit, loading } = useRegisterSale()
@@ -24,19 +24,20 @@ export default function SalesPage() {
   const [lowStock, setLowStock] = useState([])
 
   const handleBarcode = useCallback(async (barcode) => {
-    const product = await getProductByBarcode(barcode)
+    const product = await getProductByBarcode(orgId, barcode)
     if (!product) {
       setToast({ message: `Código ${barcode} no encontrado`, type: 'error' })
       return
     }
     addItem(product)
     setToast({ message: `${product.name} agregado`, type: 'success' })
-  }, [addItem])
+  }, [addItem, orgId])
 
   async function handleConfirm(paymentMethod) {
     if (items.length === 0) return
     try {
       await submit({
+        orgId,
         items,
         total: cartTotal,
         profit: cartProfit,

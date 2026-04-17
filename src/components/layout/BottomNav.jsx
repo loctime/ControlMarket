@@ -22,6 +22,11 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
     </svg>
   ),
+  team: (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-8 0 4 4 0 018 0zm6 0a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  ),
 }
 
 export default function BottomNav() {
@@ -51,6 +56,12 @@ export default function BottomNav() {
         {icons.history}
         <span>Historial</span>
       </NavLink>
+      {role === 'admin' && (
+        <NavLink to="/equipo" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+          {icons.team}
+          <span>Equipo</span>
+        </NavLink>
+      )}
     </nav>
   )
 }

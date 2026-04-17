@@ -2,43 +2,78 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAdmin() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
+    // ── Helpers basados en custom claims ────────────────────────────────
+    // Los claims (orgId, role) son seteados por el backend al registrar /
+    // invitar usuarios. Esto evita un get() por request y hace las reglas
+    // mucho más eficientes.
 
-    function isVendedor() {
-      return request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'vendedor';
-    }
-
-    function isAuthenticated() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
-    // Users: read own profile; admin reads all
+    function orgId() {
+      return request.auth.token.orgId;
+    }
+
+    function role() {
+      return request.auth.token.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && role() == 'admin';
+    }
+
+    function sameOrgRead() {
+      return isSignedIn() && resource.data.orgId == orgId();
+    }
+
+    function sameOrgWrite() {
+      return isSignedIn() && request.resource.data.orgId == orgId();
+    }
+
+    // ── Organizaciones ──────────────────────────────────────────────────
+    // Creación y edición se hacen desde el backend con Admin SDK.
+    // Los usuarios solo pueden leer la org a la que pertenecen.
+    match /organizations/{oid} {
+      allow read: if isSignedIn() && oid == orgId();
+      allow write: if false;
+    }
+
+    // ── Usuarios ────────────────────────────────────────────────────────
+    // Los usuarios son creados y gestionados solo desde el backend.
+    // El cliente puede leer su propio perfil o (si es admin) los de su org.
     match /users/{uid} {
-      allow read: if request.auth.uid == uid || isAdmin();
-      allow write: if isAdmin();
+      allow read: if isSignedIn() &&
+        resource.data.orgId == orgId() &&
+        (uid == request.auth.uid || isAdmin());
+      allow write: if false;
     }
 
-    // Products: admin full access; vendedor read-only
+    // ── Productos ───────────────────────────────────────────────────────
     match /products/{productId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin();
+      allow read: if sameOrgRead();
+      allow create: if isAdmin() && sameOrgWrite();
+      allow update, delete: if isAdmin() && sameOrgRead() && sameOrgWrite();
     }
 
-    // Categories: authenticated read; admin write
+    // ── Categorías ──────────────────────────────────────────────────────
     match /categories/{categoryId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read: if sameOrgRead();
+      allow create: if isAdmin() && sameOrgWrite();
+      allow update, delete: if isAdmin() && sameOrgRead() && sameOrgWrite();
     }
 
-    // Sales: admin reads all; vendedor writes own + reads own
+    // ── Ventas ──────────────────────────────────────────────────────────
+    // Admins: lectura completa de la org.
+    // Vendedores: solo sus propias ventas dentro de la org.
+    // Creación: vendedor solo puede crear ventas con su uid y orgId.
+    // Update/delete: solo admin.
     match /sales/{saleId} {
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.vendedorId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.vendedorId == request.auth.uid;
-      allow update, delete: if isAdmin();
+      allow read: if sameOrgRead() &&
+        (isAdmin() || resource.data.vendedorId == request.auth.uid);
+      allow create: if sameOrgWrite() &&
+        request.resource.data.vendedorId == request.auth.uid;
+      allow update, delete: if isAdmin() && sameOrgRead();
     }
   }
 }
