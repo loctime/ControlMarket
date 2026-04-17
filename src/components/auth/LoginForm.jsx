@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import useAuth from '../../hooks/useAuth'
 import Input from '../ui/Input'
 import Button from '../ui/Button'
@@ -56,6 +56,12 @@ export default function LoginForm() {
       <Button type="submit" loading={loading} size="lg" className="mt-2 w-full">
         Iniciar sesión
       </Button>
+      <p className="text-center text-sm text-gray-500">
+        ¿No tenés cuenta?{' '}
+        <Link to="/registro" className="font-medium text-primary-700 hover:underline">
+          Crear una
+        </Link>
+      </p>
     </form>
   )
 }

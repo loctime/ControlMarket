@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { addProduct, updateProduct, softDeleteProduct, getCategories } from '../lib/firestore'
+import useAuth from '../hooks/useAuth'
 import ProductForm from '../components/products/ProductForm'
 import Spinner from '../components/ui/Spinner'
 import Toast from '../components/ui/Toast'
@@ -10,6 +11,7 @@ import Toast from '../components/ui/Toast'
 export default function ProductDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { orgId } = useAuth()
   const [product, setProduct] = useState(null)
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
@@ -17,19 +19,20 @@ export default function ProductDetailPage() {
   const isNew = id === 'new'
 
   useEffect(() => {
-    getCategories().then(setCategories)
+    if (!orgId) return
+    getCategories(orgId).then(setCategories)
     if (!isNew) {
       getDoc(doc(db, 'products', id)).then((snap) => {
         if (snap.exists()) setProduct({ id: snap.id, ...snap.data() })
       })
     }
-  }, [id, isNew])
+  }, [id, isNew, orgId])
 
   async function handleSubmit(data) {
     setLoading(true)
     try {
       if (isNew) {
-        await addProduct(data)
+        await addProduct(orgId, data)
         setToast({ message: 'Producto agregado', type: 'success' })
         setTimeout(() => navigate('/products'), 1000)
       } else {
