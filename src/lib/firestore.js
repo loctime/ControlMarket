@@ -82,6 +82,83 @@ export async function getCategories(orgId) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
+export async function addCategory(orgId, name, order = 999) {
+  assertOrg(orgId)
+  const ref = await addDoc(collection(db, 'categories'), {
+    orgId,
+    name,
+    order,
+    active: true,
+    createdAt: serverTimestamp(),
+  })
+  return { id: ref.id, name, order, active: true }
+}
+
+// ── Bulk product import ──────────────────────────────────────────────────────
+
+export async function bulkAddProducts(orgId, products, { onProgress } = {}) {
+  assertOrg(orgId)
+  const BATCH_SIZE = 400
+  let written = 0
+  for (let i = 0; i < products.length; i += BATCH_SIZE) {
+    const chunk = products.slice(i, i + BATCH_SIZE)
+    const batch = writeBatch(db)
+    for (const product of chunk) {
+      const ref = doc(collection(db, 'products'))
+      batch.set(ref, {
+        ...product,
+        orgId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    }
+    await batch.commit()
+    written += chunk.length
+    onProgress?.(written, products.length)
+  }
+  return written
+}
+
+export async function getActiveProductIndex(orgId) {
+  assertOrg(orgId)
+  const snap = await getDocs(
+    query(
+      collection(db, 'products'),
+      where('orgId', '==', orgId),
+      where('active', '==', true)
+    )
+  )
+  return snap.docs.map((d) => {
+    const data = d.data()
+    return {
+      id: d.id,
+      name: typeof data.name === 'string' ? data.name : '',
+      barcode: typeof data.barcode === 'string' ? data.barcode.trim() : '',
+    }
+  })
+}
+
+export async function bulkUpdateProducts(updates, { onProgress } = {}) {
+  const BATCH_SIZE = 400
+  let written = 0
+  for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+    const chunk = updates.slice(i, i + BATCH_SIZE)
+    const batch = writeBatch(db)
+    for (const { id, data, stockIncrement } of chunk) {
+      const ref = doc(db, 'products', id)
+      const payload = { ...data, updatedAt: serverTimestamp() }
+      if (Number.isFinite(stockIncrement) && stockIncrement !== 0) {
+        payload.stock = increment(stockIncrement)
+      }
+      batch.update(ref, payload)
+    }
+    await batch.commit()
+    written += chunk.length
+    onProgress?.(written, updates.length)
+  }
+  return written
+}
+
 // ── Sales ─────────────────────────────────────────────────────────────────────
 
 export async function registerSale({

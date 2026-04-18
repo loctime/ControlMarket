@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ControlMarket">
+  <rect width="512" height="512" rx="96" fill="#1e40af"/>
+  <!-- Shopping bag body -->
+  <path d="M152 184 h208 a20 20 0 0 1 20 20 v208 a20 20 0 0 1 -20 20 h-208 a20 20 0 0 1 -20 -20 v-208 a20 20 0 0 1 20 -20 z" fill="#ffffff"/>
+  <!-- Handle -->
+  <path d="M202 184 v-30 a54 54 0 0 1 108 0 v30" stroke="#ffffff" stroke-width="22" fill="none" stroke-linecap="round"/>
+  <!-- Check inside bag -->
+  <path d="M202 308 l42 42 l78 -98" stroke="#1e40af" stroke-width="32" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Input from '../ui/Input'
 import Button from '../ui/Button'
 import Alert from '../ui/Alert'
+import BarcodeInput from '../ui/BarcodeInput'
 
 const UNITS = ['pieza', 'kg', 'litro', 'paquete', 'caja']
 
@@ -78,7 +79,12 @@ export default function ProductForm({ initial = {}, categories = [], onSubmit, o
         </select>
       </div>
 
-      <Input label="Código de barras (opcional)" value={form.barcode} onChange={set('barcode')} />
+      <BarcodeInput
+        label="Código de barras (opcional)"
+        value={form.barcode}
+        onChange={(v) => setForm((prev) => ({ ...prev, barcode: v }))}
+        placeholder="Escribí o escaneá"
+      />
 
       {initial.id && (
         <label className="flex items-center gap-2 text-sm">

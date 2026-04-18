@@ -1,6 +1,8 @@
 import { auth } from './firebase'
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// Las API routes viven en /api/* del mismo deploy (Vercel serverless functions).
+// VITE_API_URL solo es útil si querés apuntar a otro host (ej: backend standalone).
+const BASE_URL = import.meta.env.VITE_API_URL || ''
 
 async function apiFetch(path, { method = 'GET', body, auth: withAuth = true } = {}) {
   const headers = { 'Content-Type': 'application/json' }

@@ -12,6 +12,7 @@ import ProductSearch from '../components/sales/ProductSearch'
 import CartItem from '../components/sales/CartItem'
 import CartSummary from '../components/sales/CartSummary'
 import PaymentDialog from '../components/sales/PaymentDialog'
+import ScanResultDialog from '../components/sales/ScanResultDialog'
 import Toast from '../components/ui/Toast'
 import Alert from '../components/ui/Alert'
 
@@ -28,16 +29,36 @@ export default function SalesPage() {
   const [toast, setToast] = useState(null)
   const [lowStock, setLowStock] = useState([])
   const [payOpen, setPayOpen] = useState(false)
+  const [scannedProduct, setScannedProduct] = useState(null)
+  const [lookingUp, setLookingUp] = useState(false)
 
-  const handleBarcode = useCallback(async (barcode) => {
-    const product = await getProductByBarcode(orgId, barcode)
-    if (!product) {
-      setToast({ message: `Código ${barcode} no encontrado`, type: 'error' })
-      return
-    }
-    addItem(product)
-    setToast({ message: `${product.name} agregado`, type: 'success' })
-  }, [addItem, orgId])
+  const handleBarcode = useCallback(
+    async (barcode) => {
+      if (scannedProduct || lookingUp) return
+      setLookingUp(true)
+      try {
+        const product = await getProductByBarcode(orgId, barcode)
+        if (!product) {
+          setToast({ message: `Código ${barcode} no encontrado`, type: 'error' })
+          return
+        }
+        setScannedProduct(product)
+      } finally {
+        setLookingUp(false)
+      }
+    },
+    [orgId, scannedProduct, lookingUp]
+  )
+
+  function handleConfirmScan(product, qty) {
+    addItem(product, qty)
+    setScannedProduct(null)
+    setToast({ message: `${product.name} × ${qty} agregado`, type: 'success' })
+  }
+
+  function handleCancelScan() {
+    setScannedProduct(null)
+  }
 
   async function handlePaymentConfirm({ payments, cashReceived, change }) {
     if (items.length === 0) return
@@ -66,6 +87,8 @@ export default function SalesPage() {
       setToast({ message: err.message || 'Error al registrar la venta', type: 'error' })
     }
   }
+
+  const scannerActive = tab === 'scanner' && !scannedProduct
 
   return (
     <div className="flex flex-col gap-4">
@@ -101,7 +124,7 @@ export default function SalesPage() {
       </div>
 
       {tab === 'scanner' ? (
-        <BarcodeScanner active={tab === 'scanner'} onDetected={handleBarcode} />
+        <BarcodeScanner active={scannerActive} onDetected={handleBarcode} />
       ) : (
         <ProductSearch products={products} onSelect={(p) => addItem(p)} />
       )}
@@ -130,6 +153,12 @@ export default function SalesPage() {
           />
         </>
       )}
+
+      <ScanResultDialog
+        product={scannedProduct}
+        onConfirm={handleConfirmScan}
+        onCancel={handleCancelScan}
+      />
 
       <PaymentDialog
         open={payOpen}
