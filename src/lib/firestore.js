@@ -82,6 +82,83 @@ export async function getCategories(orgId) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
+export async function addCategory(orgId, name, order = 999) {
+  assertOrg(orgId)
+  const ref = await addDoc(collection(db, 'categories'), {
+    orgId,
+    name,
+    order,
+    active: true,
+    createdAt: serverTimestamp(),
+  })
+  return { id: ref.id, name, order, active: true }
+}
+
+// ── Bulk product import ──────────────────────────────────────────────────────
+
+export async function bulkAddProducts(orgId, products, { onProgress } = {}) {
+  assertOrg(orgId)
+  const BATCH_SIZE = 400
+  let written = 0
+  for (let i = 0; i < products.length; i += BATCH_SIZE) {
+    const chunk = products.slice(i, i + BATCH_SIZE)
+    const batch = writeBatch(db)
+    for (const product of chunk) {
+      const ref = doc(collection(db, 'products'))
+      batch.set(ref, {
+        ...product,
+        orgId,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    }
+    await batch.commit()
+    written += chunk.length
+    onProgress?.(written, products.length)
+  }
+  return written
+}
+
+export async function getActiveProductIndex(orgId) {
+  assertOrg(orgId)
+  const snap = await getDocs(
+    query(
+      collection(db, 'products'),
+      where('orgId', '==', orgId),
+      where('active', '==', true)
+    )
+  )
+  return snap.docs.map((d) => {
+    const data = d.data()
+    return {
+      id: d.id,
+      name: typeof data.name === 'string' ? data.name : '',
+      barcode: typeof data.barcode === 'string' ? data.barcode.trim() : '',
+    }
+  })
+}
+
+export async function bulkUpdateProducts(updates, { onProgress } = {}) {
+  const BATCH_SIZE = 400
+  let written = 0
+  for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+    const chunk = updates.slice(i, i + BATCH_SIZE)
+    const batch = writeBatch(db)
+    for (const { id, data, stockIncrement } of chunk) {
+      const ref = doc(db, 'products', id)
+      const payload = { ...data, updatedAt: serverTimestamp() }
+      if (Number.isFinite(stockIncrement) && stockIncrement !== 0) {
+        payload.stock = increment(stockIncrement)
+      }
+      batch.update(ref, payload)
+    }
+    await batch.commit()
+    written += chunk.length
+    onProgress?.(written, updates.length)
+  }
+  return written
+}
+
 // ── Sales ─────────────────────────────────────────────────────────────────────
 
 export async function registerSale({
@@ -89,12 +166,23 @@ export async function registerSale({
   items,
   total,
   profit,
-  paymentMethod,
+  payments,
+  cashReceived,
+  change,
+  shiftId,
   vendedorId,
   vendedorName,
   dateKey,
 }) {
   assertOrg(orgId)
+  if (!Array.isArray(payments) || payments.length === 0) {
+    throw new Error('La venta requiere al menos un método de pago')
+  }
+  const paidTotal = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+  if (Math.abs(paidTotal - total) > 0.01) {
+    throw new Error('El total pagado no coincide con el total de la venta')
+  }
+
   const batch = writeBatch(db)
 
   const saleRef = doc(collection(db, 'sales'))
@@ -104,7 +192,11 @@ export async function registerSale({
     vendedorName,
     total,
     profit,
-    paymentMethod,
+    payments,
+    paymentMethod: payments[0].method,
+    cashReceived: cashReceived ?? null,
+    change: change ?? null,
+    shiftId: shiftId ?? null,
     status: 'completed',
     items,
     dateKey,
@@ -116,8 +208,30 @@ export async function registerSale({
     batch.update(productRef, { stock: increment(-item.quantity), updatedAt: serverTimestamp() })
   }
 
+  if (shiftId) {
+    const shiftRef = doc(db, 'shifts', shiftId)
+    const updates = { salesCount: increment(1) }
+    for (const p of payments) {
+      updates[`totals.${p.method}`] = increment(Number(p.amount) || 0)
+    }
+    batch.update(shiftRef, updates)
+  }
+
   await batch.commit()
   return saleRef.id
+}
+
+export async function getSale(saleId) {
+  const snap = await getDoc(doc(db, 'sales', saleId))
+  if (!snap.exists()) return null
+  return { id: snap.id, ...snap.data() }
+}
+
+export async function getOrganization(orgId) {
+  assertOrg(orgId)
+  const snap = await getDoc(doc(db, 'organizations', orgId))
+  if (!snap.exists()) return null
+  return { id: snap.id, ...snap.data() }
 }
 
 export function subscribeSalesHistory({ orgId, vendedorId, isAdmin }, callback) {

@@ -22,7 +22,18 @@ export function useRegisterSale() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  async function submit({ orgId, items, total, profit, paymentMethod, vendedorId, vendedorName }) {
+  async function submit({
+    orgId,
+    items,
+    total,
+    profit,
+    payments,
+    cashReceived,
+    change,
+    shiftId,
+    vendedorId,
+    vendedorName,
+  }) {
     setLoading(true)
     setError(null)
     try {
@@ -31,7 +42,10 @@ export function useRegisterSale() {
         items,
         total,
         profit,
-        paymentMethod,
+        payments,
+        cashReceived,
+        change,
+        shiftId,
         vendedorId,
         vendedorName,
         dateKey: toDateKey(),

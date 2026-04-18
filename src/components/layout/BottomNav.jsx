@@ -27,37 +27,46 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-8 0 4 4 0 018 0zm6 0a4 4 0 11-8 0 4 4 0 018 0z" />
     </svg>
   ),
+  cash: (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8v8m0 0v2m0-10V6m0 0a9 9 0 110 12 9 9 0 010-12z" />
+    </svg>
+  ),
 }
 
 export default function BottomNav() {
   const { role } = useAuth()
-  const base = 'flex flex-col items-center gap-1 px-4 py-2 text-xs text-gray-500 transition-colors'
+  const base = 'flex min-w-[72px] shrink-0 flex-col items-center gap-1 px-4 py-2 text-xs text-gray-500 transition-colors md:min-w-0 md:flex-1'
   const active = 'text-primary-600'
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-gray-200 bg-white">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 flex overflow-x-auto border-t border-gray-200 bg-white md:overflow-x-visible [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {role === 'admin' && (
-        <NavLink to="/dashboard" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+        <NavLink to="/dashboard" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
           {icons.dashboard}
           <span>Inicio</span>
         </NavLink>
       )}
-      <NavLink to="/sales" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+      <NavLink to="/sales" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
         {icons.sales}
         <span>Vender</span>
       </NavLink>
+      <NavLink to="/caja" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
+        {icons.cash}
+        <span>Caja</span>
+      </NavLink>
       {role === 'admin' && (
-        <NavLink to="/products" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+        <NavLink to="/products" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
           {icons.products}
           <span>Productos</span>
         </NavLink>
       )}
-      <NavLink to="/sales/history" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+      <NavLink to="/sales/history" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
         {icons.history}
         <span>Historial</span>
       </NavLink>
       {role === 'admin' && (
-        <NavLink to="/equipo" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+        <NavLink to="/equipo" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
           {icons.team}
           <span>Equipo</span>
         </NavLink>
