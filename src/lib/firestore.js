@@ -89,12 +89,23 @@ export async function registerSale({
   items,
   total,
   profit,
-  paymentMethod,
+  payments,
+  cashReceived,
+  change,
+  shiftId,
   vendedorId,
   vendedorName,
   dateKey,
 }) {
   assertOrg(orgId)
+  if (!Array.isArray(payments) || payments.length === 0) {
+    throw new Error('La venta requiere al menos un método de pago')
+  }
+  const paidTotal = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+  if (Math.abs(paidTotal - total) > 0.01) {
+    throw new Error('El total pagado no coincide con el total de la venta')
+  }
+
   const batch = writeBatch(db)
 
   const saleRef = doc(collection(db, 'sales'))
@@ -104,7 +115,11 @@ export async function registerSale({
     vendedorName,
     total,
     profit,
-    paymentMethod,
+    payments,
+    paymentMethod: payments[0].method,
+    cashReceived: cashReceived ?? null,
+    change: change ?? null,
+    shiftId: shiftId ?? null,
     status: 'completed',
     items,
     dateKey,
@@ -116,8 +131,30 @@ export async function registerSale({
     batch.update(productRef, { stock: increment(-item.quantity), updatedAt: serverTimestamp() })
   }
 
+  if (shiftId) {
+    const shiftRef = doc(db, 'shifts', shiftId)
+    const updates = { salesCount: increment(1) }
+    for (const p of payments) {
+      updates[`totals.${p.method}`] = increment(Number(p.amount) || 0)
+    }
+    batch.update(shiftRef, updates)
+  }
+
   await batch.commit()
   return saleRef.id
+}
+
+export async function getSale(saleId) {
+  const snap = await getDoc(doc(db, 'sales', saleId))
+  if (!snap.exists()) return null
+  return { id: snap.id, ...snap.data() }
+}
+
+export async function getOrganization(orgId) {
+  assertOrg(orgId)
+  const snap = await getDoc(doc(db, 'organizations', orgId))
+  if (!snap.exists()) return null
+  return { id: snap.id, ...snap.data() }
 }
 
 export function subscribeSalesHistory({ orgId, vendedorId, isAdmin }, callback) {

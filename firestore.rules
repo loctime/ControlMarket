@@ -75,5 +75,18 @@ service cloud.firestore {
         request.resource.data.vendedorId == request.auth.uid;
       allow update, delete: if isAdmin() && sameOrgRead();
     }
+
+    // ── Caja / Turnos ───────────────────────────────────────────────────
+    // Todos los miembros de la org pueden leer el turno activo y actualizarlo
+    // (registrar ventas y movimientos de efectivo, que se hacen en batch junto
+    // con las ventas). Solo admins pueden abrir y cerrar cajas.
+    match /shifts/{shiftId} {
+      allow read: if sameOrgRead();
+      allow create: if isAdmin() && sameOrgWrite() &&
+        request.resource.data.status == 'open';
+      allow update: if sameOrgRead() && sameOrgWrite() &&
+        (isAdmin() || resource.data.status == 'open');
+      allow delete: if false;
+    }
   }
 }

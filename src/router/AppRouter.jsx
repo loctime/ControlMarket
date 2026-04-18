@@ -8,6 +8,8 @@ import ProductsPage from '../pages/ProductsPage'
 import ProductDetailPage from '../pages/ProductDetailPage'
 import SalesPage from '../pages/SalesPage'
 import SaleHistoryPage from '../pages/SaleHistoryPage'
+import ShiftPage from '../pages/ShiftPage'
+import TicketPage from '../pages/TicketPage'
 import TeamPage from '../pages/TeamPage'
 import NotFoundPage from '../pages/NotFoundPage'
 
@@ -51,6 +53,8 @@ export default function AppRouter() {
           />
           <Route path="/sales" element={<SalesPage />} />
           <Route path="/sales/history" element={<SaleHistoryPage />} />
+          <Route path="/sales/ticket/:id" element={<TicketPage />} />
+          <Route path="/caja" element={<ShiftPage />} />
           <Route
             path="/equipo"
             element={

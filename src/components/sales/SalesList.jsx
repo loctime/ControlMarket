@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { formatCurrency } from '../../utils/formatCurrency'
 import { formatDateTime } from '../../utils/formatDate'
 import Badge from '../ui/Badge'
@@ -40,6 +41,12 @@ export default function SalesList({ sales }) {
                   <span>{formatCurrency(item.subtotal)}</span>
                 </div>
               ))}
+              <Link
+                to={`/sales/ticket/${sale.id}`}
+                className="mt-2 inline-block text-xs font-medium text-primary-600 hover:underline"
+              >
+                Ver ticket →
+              </Link>
             </div>
           )}
         </div>

@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import useAuth from '../hooks/useAuth'
 import useProducts from '../hooks/useProducts'
 import useCart from '../hooks/useCart'
+import useActiveShift from '../hooks/useShift'
 import { useRegisterSale } from '../hooks/useSales'
 import { getProductByBarcode } from '../lib/firestore'
 import { filterLowStockProducts } from '../utils/stockHelpers'
@@ -9,6 +11,7 @@ import BarcodeScanner from '../components/sales/BarcodeScanner'
 import ProductSearch from '../components/sales/ProductSearch'
 import CartItem from '../components/sales/CartItem'
 import CartSummary from '../components/sales/CartSummary'
+import PaymentDialog from '../components/sales/PaymentDialog'
 import Toast from '../components/ui/Toast'
 import Alert from '../components/ui/Alert'
 
@@ -19,9 +22,12 @@ export default function SalesPage() {
   const { products } = useProducts()
   const { items, addItem, updateQty, removeItem, clearCart, cartTotal, cartProfit } = useCart()
   const { submit, loading } = useRegisterSale()
+  const { shift } = useActiveShift(orgId)
+  const navigate = useNavigate()
   const [tab, setTab] = useState('buscar')
   const [toast, setToast] = useState(null)
   const [lowStock, setLowStock] = useState([])
+  const [payOpen, setPayOpen] = useState(false)
 
   const handleBarcode = useCallback(async (barcode) => {
     const product = await getProductByBarcode(orgId, barcode)
@@ -33,15 +39,18 @@ export default function SalesPage() {
     setToast({ message: `${product.name} agregado`, type: 'success' })
   }, [addItem, orgId])
 
-  async function handleConfirm(paymentMethod) {
+  async function handlePaymentConfirm({ payments, cashReceived, change }) {
     if (items.length === 0) return
     try {
-      await submit({
+      const saleId = await submit({
         orgId,
         items,
         total: cartTotal,
         profit: cartProfit,
-        paymentMethod,
+        payments,
+        cashReceived,
+        change,
+        shiftId: shift?.id ?? null,
         vendedorId: currentUser.uid,
         vendedorName: currentUser.displayName || currentUser.email,
       })
@@ -50,15 +59,26 @@ export default function SalesPage() {
       )
       setLowStock(low)
       clearCart()
+      setPayOpen(false)
       setToast({ message: `Venta registrada: $${cartTotal.toFixed(2)}`, type: 'success' })
-    } catch {
-      setToast({ message: 'Error al registrar la venta', type: 'error' })
+      navigate(`/sales/ticket/${saleId}`)
+    } catch (err) {
+      setToast({ message: err.message || 'Error al registrar la venta', type: 'error' })
     }
   }
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-bold text-gray-900">Registrar venta</h1>
+
+      {!shift && (
+        <Alert type="warning">
+          No hay caja abierta.{' '}
+          <Link to="/caja" className="font-semibold underline">
+            Abrir caja
+          </Link>
+        </Alert>
+      )}
 
       {lowStock.length > 0 && (
         <Alert type="warning" onClose={() => setLowStock([])}>
@@ -104,12 +124,20 @@ export default function SalesPage() {
 
           <CartSummary
             total={cartTotal}
-            onConfirm={handleConfirm}
-            loading={loading}
+            onCharge={() => setPayOpen(true)}
             disabled={items.length === 0}
+            shiftOpen={!!shift}
           />
         </>
       )}
+
+      <PaymentDialog
+        open={payOpen}
+        onClose={() => setPayOpen(false)}
+        total={cartTotal}
+        onConfirm={handlePaymentConfirm}
+        loading={loading}
+      />
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
