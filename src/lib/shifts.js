@@ -5,6 +5,7 @@ import {
   query,
   where,
   limit,
+  orderBy,
   onSnapshot,
   serverTimestamp,
   writeBatch,
@@ -76,19 +77,48 @@ export async function openShift({ orgId, openingCash, user, notes }) {
   return ref.id
 }
 
-export async function closeShift({ shiftId, closingCash, user, notes }) {
+export async function closeShift({ shiftId, closingCash, leftInDrawer, user, notes }) {
   if (!shiftId) throw new Error('Sin turno activo')
   const ref = doc(db, 'shifts', shiftId)
   const batch = writeBatch(db)
   batch.update(ref, {
     status: 'closed',
     closingCash: Number(closingCash) || 0,
+    leftInDrawer: Number(leftInDrawer) || 0,
     closedBy: user.uid,
     closedByName: user.displayName || user.email,
     closedAt: serverTimestamp(),
     closingNotes: notes || '',
   })
   await batch.commit()
+}
+
+export async function getLastClosedShift(orgId) {
+  if (!orgId) return null
+  const q = query(
+    collection(db, 'shifts'),
+    where('orgId', '==', orgId),
+    where('status', '==', 'closed'),
+    orderBy('closedAt', 'desc'),
+    limit(1)
+  )
+  const snap = await getDocs(q)
+  if (snap.empty) return null
+  return { id: snap.docs[0].id, ...snap.docs[0].data() }
+}
+
+export function subscribeShiftsHistory(orgId, callback) {
+  if (!orgId) return () => {}
+  const q = query(
+    collection(db, 'shifts'),
+    where('orgId', '==', orgId),
+    where('status', '==', 'closed'),
+    orderBy('closedAt', 'desc'),
+    limit(50)
+  )
+  return onSnapshot(q, (snap) =>
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+  )
 }
 
 export async function addCashMovement({ shiftId, type, amount, reason, user }) {

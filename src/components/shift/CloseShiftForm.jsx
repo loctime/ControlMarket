@@ -8,13 +8,16 @@ import Input from '../ui/Input'
 export default function CloseShiftForm({ shift, onClosed }) {
   const { currentUser } = useAuth()
   const [closingCash, setClosingCash] = useState('')
+  const [leftInDrawer, setLeftInDrawer] = useState('0')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   const expected = computeExpectedCash(shift)
-  const counted = Number(closingCash)
-  const diff = Number.isFinite(counted) ? counted - expected : 0
+  const counted = Number(closingCash) || 0
+  const left = Number(leftInDrawer) || 0
+  const diff = closingCash !== '' ? counted - expected : null
+  const withdrawn = closingCash !== '' ? counted - left : null
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -24,6 +27,7 @@ export default function CloseShiftForm({ shift, onClosed }) {
       await closeShift({
         shiftId: shift.id,
         closingCash: counted,
+        leftInDrawer: left,
         user: currentUser,
         notes,
       })
@@ -52,14 +56,29 @@ export default function CloseShiftForm({ shift, onClosed }) {
         onChange={(e) => setClosingCash(e.target.value)}
         required
       />
-      {closingCash !== '' && (
+      {diff !== null && (
         <div
           className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
             diff === 0 ? 'bg-green-50 text-green-800' : diff > 0 ? 'bg-blue-50 text-blue-800' : 'bg-red-50 text-red-800'
           }`}
         >
           <span>{diff === 0 ? 'Sin diferencia' : diff > 0 ? 'Sobrante' : 'Faltante'}</span>
-          <span className="font-bold">{formatCurrency(Math.abs(diff))}</span>
+          <span className="font-bold">{diff === 0 ? '—' : formatCurrency(Math.abs(diff))}</span>
+        </div>
+      )}
+      <Input
+        label="¿Cuánto dejás en caja para el próximo turno?"
+        type="number"
+        inputMode="decimal"
+        min="0"
+        step="0.01"
+        value={leftInDrawer}
+        onChange={(e) => setLeftInDrawer(e.target.value)}
+      />
+      {withdrawn !== null && (
+        <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+          <span>Vas a retirar</span>
+          <span className="font-bold">{formatCurrency(Math.max(0, withdrawn))}</span>
         </div>
       )}
       <Input
