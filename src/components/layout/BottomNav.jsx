@@ -36,11 +36,11 @@ const icons = {
 
 export default function BottomNav() {
   const { role } = useAuth()
-  const base = 'flex min-w-[72px] shrink-0 flex-col items-center gap-1 px-4 py-2 text-xs text-gray-500 transition-colors'
+  const base = 'flex min-w-[72px] shrink-0 flex-col items-center gap-1 px-4 py-2 text-xs text-gray-500 transition-colors md:min-w-0 md:flex-1'
   const active = 'text-primary-600'
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 flex overflow-x-auto border-t border-gray-200 bg-white [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 flex overflow-x-auto border-t border-gray-200 bg-white md:overflow-x-visible [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {role === 'admin' && (
         <NavLink to="/dashboard" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
           {icons.dashboard}
