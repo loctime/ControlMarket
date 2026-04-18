@@ -36,37 +36,37 @@ const icons = {
 
 export default function BottomNav() {
   const { role } = useAuth()
-  const base = 'flex flex-col items-center gap-1 px-4 py-2 text-xs text-gray-500 transition-colors'
+  const base = 'flex min-w-[72px] shrink-0 flex-col items-center gap-1 px-4 py-2 text-xs text-gray-500 transition-colors'
   const active = 'text-primary-600'
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 flex border-t border-gray-200 bg-white">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 flex overflow-x-auto border-t border-gray-200 bg-white [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {role === 'admin' && (
-        <NavLink to="/dashboard" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+        <NavLink to="/dashboard" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
           {icons.dashboard}
           <span>Inicio</span>
         </NavLink>
       )}
-      <NavLink to="/sales" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+      <NavLink to="/sales" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
         {icons.sales}
         <span>Vender</span>
       </NavLink>
-      <NavLink to="/caja" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+      <NavLink to="/caja" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
         {icons.cash}
         <span>Caja</span>
       </NavLink>
       {role === 'admin' && (
-        <NavLink to="/products" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+        <NavLink to="/products" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
           {icons.products}
           <span>Productos</span>
         </NavLink>
       )}
-      <NavLink to="/sales/history" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+      <NavLink to="/sales/history" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
         {icons.history}
         <span>Historial</span>
       </NavLink>
       {role === 'admin' && (
-        <NavLink to="/equipo" className={({ isActive }) => `${base} ${isActive ? active : ''} flex-1`}>
+        <NavLink to="/equipo" className={({ isActive }) => `${base} ${isActive ? active : ''}`}>
           {icons.team}
           <span>Equipo</span>
         </NavLink>
