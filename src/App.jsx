@@ -2,7 +2,6 @@ import { AuthProvider } from './contexts/AuthContext'
 import { SyncProvider } from './contexts/SyncContext'
 import AppRouter from './router/AppRouter'
 import InstallPrompt from './components/pwa/InstallPrompt'
-import UpdatePrompt from './components/pwa/UpdatePrompt'
 
 export default function App() {
   return (
@@ -10,7 +9,6 @@ export default function App() {
       <SyncProvider>
         <AppRouter />
         <InstallPrompt />
-        <UpdatePrompt />
       </SyncProvider>
     </AuthProvider>
   )
