@@ -6,20 +6,25 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/*.png'],
+      registerType: 'prompt',
+      includeAssets: ['favicon.svg', 'icons/favicon.ico', 'icons/apple-touch-icon-180x180.png'],
       manifest: {
         name: 'ControlMarket',
         short_name: 'ControlMarket',
-        description: 'Sistema de gestión para kiosco',
+        description: 'Gestión de punto de venta, stock y equipo para comercios',
+        lang: 'es',
         theme_color: '#1e40af',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
+        scope: '/',
         start_url: '/',
+        categories: ['business', 'productivity'],
         icons: [
-          { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icons/pwa-64x64.png', sizes: '64x64', type: 'image/png' },
+          { src: '/icons/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
